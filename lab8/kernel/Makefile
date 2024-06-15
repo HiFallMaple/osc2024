@@ -9,7 +9,7 @@ KILL_TMUX := tmux kill-session -t $(SESSION_NAME)
 
 COPS = -Wall -nostdlib -nostartfiles -ffreestanding -Iinclude -mgeneral-regs-only $(cops)
 ASMOPS = -Iinclude 
-QOPS = -M raspi3b -kernel $(NAME).img -dtb ../bcm2710-rpi-3-b-plus.dtb -initrd ../initramfs.cpio  
+QOPS = -M raspi3b -kernel $(NAME).img -dtb ../bcm2710-rpi-3-b-plus.dtb -initrd ../initramfs.cpio -drive if=sd,file=sdcard.img,format=raw
 GDBOPS = --init-eval-command="file $(BUILD_DIR)/$(NAME).elf" --init-eval-command="target remote :1234"
 
 RED=\033[0;31m
