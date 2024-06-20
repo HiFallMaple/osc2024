@@ -12,6 +12,7 @@
 #include "syscall.h"
 #include "dev_framebuffer.h"
 #include "dev_uart1.h"
+#include "sdhost.h"
 
 extern thread_t *curr_thread;
 
@@ -78,6 +79,10 @@ void init_rootfs()
 	vfs_mknod(curr_vnode, "/dev/framebuffer", framebuffer_dev_id);
 	init_dev_uart1();
 	vfs_mknod(curr_vnode, "/dev/uart1", uart1_dev_id);
+
+	register_fat32();
+	vfs_mkdir(curr_vnode, "/mnt");
+	vfs_mount(curr_vnode, "/mnt", "fat32");
 }
 
 void init_thread_vfs(struct thread_struct *t)
