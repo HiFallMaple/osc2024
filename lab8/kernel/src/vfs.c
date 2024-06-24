@@ -81,8 +81,14 @@ void init_rootfs()
 	vfs_mknod(curr_vnode, "/dev/uart1", uart1_dev_id);
 
 	register_fat32();
-	vfs_mkdir(curr_vnode, "/mnt");
-	vfs_mount(curr_vnode, "/mnt", "fat32");
+	vfs_mkdir(curr_vnode, "/boot");
+	vfs_mount(curr_vnode, "/boot", "fat32");
+	vfs_open(curr_vnode, "/boot/HELLO", O_CREAT, &file);
+	vfs_write(file, "hello world", 12);
+	vfs_open(curr_vnode, "/boot/TEST", O_CREAT, &file);
+	vfs_write(file, "TEST", 5);
+	vfs_open(curr_vnode, "/boot/TEST2", O_CREAT, &file);
+	vfs_write(file, "TEST22222", 10);
 }
 
 void init_thread_vfs(struct thread_struct *t)
@@ -197,6 +203,7 @@ int register_dev(dev_t *dev)
 
 int vfs_open(struct vnode *dir_node, const char *pathname, int flags, struct file **target)
 {
+	kernel_lock_interrupt();
 	vnode_t *node;
 	DEBUG("vfs_open: %s\r\n", pathname);
 	if (vfs_lookup(dir_node, pathname, &node) == -1)
@@ -223,6 +230,7 @@ int vfs_open(struct vnode *dir_node, const char *pathname, int flags, struct fil
 		if (vfs_lookup(dir_node, dirname, &node) != 0)
 		{
 			ERROR("cannot ocreate no dir name\r\n");
+			kernel_unlock_interrupt();
 			return -1;
 		}
 		// create a new file node on node, &node is new file, 3rd arg is filename
@@ -236,6 +244,7 @@ int vfs_open(struct vnode *dir_node, const char *pathname, int flags, struct fil
 	(*target)->flags = flags;
 	(*target)->f_pos = 0;
 	DEBUG("vfs_open: %s, file: 0x%x, f_ops: 0x%x\r\n", pathname, *target, (*target)->f_ops);
+	kernel_unlock_interrupt();
 	return 0;
 }
 
@@ -379,6 +388,7 @@ static inline int __vfs_lookup_depth_1(char *component_name, vnode_t *node, vnod
 	// redirect to mounted filesystem
 	while (node->mount)
 	{
+		DEBUG("vfs_lookup: node->mount->root: 0x%x\r\n", node->mount->root);
 		node = node->mount->root;
 	}
 	*target = node;
@@ -387,6 +397,7 @@ static inline int __vfs_lookup_depth_1(char *component_name, vnode_t *node, vnod
 
 int vfs_lookup(struct vnode *dir_node, const char *pathname, struct vnode **target)
 {
+	kernel_lock_interrupt();
 	vnode_t *node;
 	size_t i_start = 0;
 	// translate absolute path to relative path
@@ -427,6 +438,7 @@ int vfs_lookup(struct vnode *dir_node, const char *pathname, struct vnode **targ
 			if (__vfs_lookup_depth_1(component_name, node, &node) == -1)
 			{
 				DEBUG("vfs_lookup: lookup error\r\n");
+				kernel_unlock_interrupt();
 				return -1;
 			}
 			comp_len = 0;
@@ -439,6 +451,7 @@ int vfs_lookup(struct vnode *dir_node, const char *pathname, struct vnode **targ
 	} while (i < strlen(pathname) + 1);
 	DEBUG("vfs_lookup: target %s\r\n", node->name);
 	*target = node;
+	kernel_unlock_interrupt();
 	return 0;
 }
 
@@ -479,7 +492,7 @@ int get_pwd(char *buf)
 
 struct file *duplicate_file_struct(struct file *file)
 {
-	if(file == NULL)
+	if (file == NULL)
 	{
 		return NULL;
 	}
